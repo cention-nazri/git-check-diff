@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -16,6 +18,28 @@ func main() {
 
 	checkDiff(os.Args[1])
 
+}
+
+type MergeBaseTags []string
+
+func (m MergeBaseTags) Len() int           { return len(m) }
+func (m MergeBaseTags) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+func (m MergeBaseTags) Less(i, j int) bool { return getTagNumber(m[i]) < getTagNumber(m[j]) }
+
+func getTagNumber(mbtag string) int {
+	if !strings.HasPrefix(mbtag, "MERGE_BASE_") {
+		panic(fmt.Sprintf("%s is not a MERGE_BASE tag", mbtag))
+	}
+	chunks := strings.Split(mbtag, "_")
+	if len(chunks) != 3 {
+		panic(fmt.Sprintf("%s do not match MERGE_BASE_N pattern", mbtag))
+	}
+
+	n, err := strconv.Atoi(chunks[2])
+	if err != nil {
+		panic(fmt.Sprintf("%s: %v", mbtag, err))
+	}
+	return n
 }
 
 func checkDiff(file string) {
@@ -79,10 +103,21 @@ func checkDiff(file string) {
 		fmt.Printf("\t%s\n", sha1)
 	}
 
+	var tags MergeBaseTags
 	fmt.Printf("Common tag:\n")
 	for tag, count := range tagsSeen {
 		if count == nCommits {
-			fmt.Printf("\t%s\n", tag)
+			tags = append(tags, tag)
+		}
+	}
+
+	sort.Sort(tags)
+	for i, tag := range tags {
+		fmt.Printf("\t%s\n", tag)
+		_ = i
+		if i >= 10 && i < len(tags)-1 {
+			fmt.Printf("\t... %d more\n", len(tags)-(i+1))
+			break
 		}
 	}
 }
