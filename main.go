@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,12 +12,26 @@ import (
 	"strings"
 )
 
+var (
+	optLimit int
+	optAll   bool
+)
+
 func main() {
-	if len(os.Args) <= 1 {
+	flag.BoolVar(&optAll, "all", false, "Show all merge base tags")
+	flag.IntVar(&optLimit, "limit", 10, "Show only the given `number` of merge base tags. 0 is equivalent to -all.")
+	flag.Parse()
+
+	if optLimit == 0 {
+		optAll = true
+	}
+
+	args := flag.Args()
+	if len(args) != 1 {
 		bail("Usage: git check-diff <file>")
 	}
 
-	checkDiff(os.Args[1])
+	checkDiff(args[0])
 
 }
 
@@ -115,8 +130,8 @@ func checkDiff(file string) {
 	for i, tag := range tags {
 		fmt.Printf("\t%s\n", tag)
 		_ = i
-		if i >= 10 && i < len(tags)-1 {
-			fmt.Printf("\t... %d more\n", len(tags)-(i+1))
+		if !optAll && optLimit > 0 && i+1 >= optLimit && i < len(tags)-1 {
+			fmt.Printf("\t... %d more (use -a to show all)\n", len(tags)-(i+1))
 			break
 		}
 	}
