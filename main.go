@@ -115,7 +115,8 @@ func checkDiff(file string) {
 		for _, tag := range tags {
 			tagsSeen[tag]++
 		}
-		fmt.Printf("\t%s\n", sha1)
+		fmt.Printf("\t%s %s\n", sha1, getAffectedBranches(sha1))
+
 	}
 
 	var tags MergeBaseTags
@@ -135,6 +136,21 @@ func checkDiff(file string) {
 			break
 		}
 	}
+}
+
+func getAffectedBranches(sha1 string) string {
+	var branches []string
+	for _, b := range linesFrom("git", "branch", "--list", "--all", "--contains", sha1, "origin/release-*", "origin/develop") {
+		b = bytes.TrimLeft(b, " *")
+		branch := strings.TrimPrefix(string(b), "remotes/")
+		switch {
+		case branch == "origin/develop":
+			branches = append(branches, branch)
+		case strings.HasPrefix(branch, "origin/release-"):
+			branches = append(branches, branch)
+		}
+	}
+	return "(" + strings.Join(branches, ", ") + ")"
 }
 
 func findMergeBaseTags(sha1 string) []string {
