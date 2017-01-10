@@ -65,7 +65,7 @@ func checkDiff(file string) {
 	)
 
 	blame := getBlame(file)
-	commitsAffected := map[string][]string{}
+	commitsAffected := map[string]MergeBaseTags{}
 
 	for _, line := range linesFrom("git", "diff", "-U0", "--", file) {
 		if !bytes.HasPrefix(line, HUNK_REMOVED) {
@@ -106,7 +106,6 @@ func checkDiff(file string) {
 
 		}
 	}
-	fmt.Printf("Commits affected:\n")
 	tagsSeen := map[string]int{}
 	nCommits := len(commitsAffected)
 	for sha1, _ := range commitsAffected {
@@ -115,25 +114,49 @@ func checkDiff(file string) {
 		for _, tag := range tags {
 			tagsSeen[tag]++
 		}
-		fmt.Printf("\t%s %s\n", sha1, getAffectedBranches(sha1))
+		//fmt.Printf("\t%s %s\n", sha1, getAffectedBranches(sha1))
 
 	}
 
+	hotTags := []string{}
 	var tags MergeBaseTags
-	fmt.Printf("Common tag:\n")
 	for tag, count := range tagsSeen {
 		if count == nCommits {
 			tags = append(tags, tag)
+		} else if count > 1 {
+			hotTags = append(hotTags, tag)
 		}
 	}
 
-	sort.Sort(tags)
-	for i, tag := range tags {
-		fmt.Printf("\t%s\n", tag)
-		_ = i
-		if !optAll && optLimit > 0 && i+1 >= optLimit && i < len(tags)-1 {
-			fmt.Printf("\t... %d more (use -a to show all)\n", len(tags)-(i+1))
-			break
+	if len(tags) > 0 {
+		// We have a common commit for all the affected commits
+		fmt.Printf("Commits affected:\n")
+		for sha1, _ := range commitsAffected {
+			fmt.Printf("\t%s %s\n", sha1, getAffectedBranches(sha1))
+
+		}
+		fmt.Printf("Common tag:\n")
+		sort.Sort(tags)
+		for i, tag := range tags {
+			fmt.Printf("\t%s\n", tag)
+			_ = i
+			if !optAll && optLimit > 0 && i+1 >= optLimit && i < len(tags)-1 {
+				fmt.Printf("\t... %d more (use -a to show all)\n", len(tags)-(i+1))
+				break
+			}
+		}
+	} else {
+		fmt.Printf("No common tags found for all the affected commits.\n")
+		for sha1, tags := range commitsAffected {
+			fmt.Printf("\t%s %s\n\t\t", sha1, getAffectedBranches(sha1))
+			sort.Sort(tags)
+			for _, tag := range tags {
+				if tagsSeen[tag] > 1 {
+					fmt.Printf("%s ", tag)
+				}
+			}
+			fmt.Println()
+			// print hot tags for this sha1
 		}
 	}
 }
