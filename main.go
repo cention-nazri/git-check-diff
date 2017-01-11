@@ -13,13 +13,15 @@ import (
 )
 
 var (
-	optLimit int
-	optAll   bool
+	optLimit    int
+	optAll      bool
+	optShowLine bool
 )
 
 func main() {
 	flag.BoolVar(&optAll, "all", false, "Show all merge base tags")
 	flag.IntVar(&optLimit, "limit", 10, "Show only the given `number` of merge base tags. 0 is equivalent to -all.")
+	flag.BoolVar(&optShowLine, "line", false, "Show the line numbers for each affected commit (will be shown regardless when there are no common commit)")
 	flag.Parse()
 
 	if optLimit == 0 {
@@ -67,6 +69,7 @@ func checkDiff(file string) {
 	blame := getBlame(file)
 	commitsAffected := map[string]MergeBaseTags{}
 
+	linesForCommit := map[string][]int{}
 	for _, line := range linesFrom("git", "diff", "-U0", "--", file) {
 		if !bytes.HasPrefix(line, HUNK_REMOVED) {
 			continue
@@ -95,14 +98,18 @@ func checkDiff(file string) {
 
 			for lnum := from; lnum < from+to-1; lnum++ {
 				if lnum < len(blame) {
-					commitsAffected[blame[lnum].sha1()] = nil
+					sha1 := blame[lnum].sha1()
+					commitsAffected[sha1] = nil
+					linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
 				} else {
 					fmt.Printf("DEBUG out of bound len(blame) = %d, lnum %d\n", len(blame), lnum)
 				}
 			}
 		} else {
 			lnum := asInt(lineRange)
-			commitsAffected[blame[lnum].sha1()] = nil
+			sha1 := blame[lnum].sha1()
+			commitsAffected[sha1] = nil
+			linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
 
 		}
 	}
@@ -133,7 +140,9 @@ func checkDiff(file string) {
 		fmt.Printf("Commits affected:\n")
 		for sha1, _ := range commitsAffected {
 			fmt.Printf("\t%s %s\n", sha1, getAffectedBranches(sha1))
-
+			if optShowLine {
+				showLines(linesForCommit[sha1])
+			}
 		}
 		fmt.Printf("Common tag:\n")
 		sort.Sort(tags)
@@ -146,21 +155,34 @@ func checkDiff(file string) {
 			}
 		}
 	} else {
+		// print relevant tags for this sha1
 		fmt.Printf("No common tags found for all the affected commits.\n")
 		for sha1, tags := range commitsAffected {
 			fmt.Printf("\t%s %s\n\t\t", sha1, getAffectedBranches(sha1))
 			sort.Sort(tags)
+			tagsToShow := &bytes.Buffer{}
 			for _, tag := range tags {
 				if tagsSeen[tag] > 1 {
-					fmt.Printf("%s ", tag)
+					fmt.Fprintf(tagsToShow, "%s ", tag)
 				}
 			}
-			fmt.Println()
-			// print hot tags for this sha1
+			if tagsToShow.Len() > 0 {
+				fmt.Printf("%s\n", tagsToShow)
+			}
+			showLines(linesForCommit[sha1])
 		}
 	}
 }
 
+func showLines(lnums []int) {
+	lines := &bytes.Buffer{}
+	for _, lnum := range lnums {
+		fmt.Fprintf(lines, "%d ", lnum)
+	}
+	if lines.Len() > 0 {
+		fmt.Printf("\tlines: %s\n", lines)
+	}
+}
 func getAffectedBranches(sha1 string) string {
 	var branches []string
 	for _, b := range linesFrom("git", "branch", "--list", "--all", "--contains", sha1, "origin/release-*", "origin/develop") {
