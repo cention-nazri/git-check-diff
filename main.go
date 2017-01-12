@@ -16,16 +16,27 @@ var (
 	optLimit    int
 	optAll      bool
 	optShowLine bool
+	optBefore   bool
+	optOffset   = 0
+	optAfter    bool
 )
 
 func main() {
 	flag.BoolVar(&optAll, "all", false, "Show all merge base tags")
 	flag.IntVar(&optLimit, "limit", 10, "Show only the given `number` of merge base tags. 0 is equivalent to -all.")
 	flag.BoolVar(&optShowLine, "line", false, "Show the line numbers for each affected commit (will be shown regardless when there are no common commit)")
+	flag.BoolVar(&optBefore, "B", false, "Use the commit immediately preceeding the changed line - useful for one-liner change when the surrounding commit is newer than the changed line's")
+	flag.BoolVar(&optAfter, "A", false, "Use the commit immediately following the changed line -  useful for one-liner change when the surrounding commit is newer than the changed line's")
 	flag.Parse()
 
 	if optLimit == 0 {
 		optAll = true
+	}
+
+	if optBefore {
+		optOffset = -1
+	} else if optAfter {
+		optOffset = 1
 	}
 
 	args := flag.Args()
@@ -97,8 +108,12 @@ func checkDiff(file string) {
 			}
 
 			for lnum := from; lnum < from+to-1; lnum++ {
-				if lnum < len(blame) {
+				lnum := lnum + optOffset
+				if lnum > 0 && lnum < len(blame) {
 					sha1 := blame[lnum].sha1()
+					if len(sha1) == 0 {
+						continue
+					}
 					commitsAffected[sha1] = nil
 					linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
 				} else {
@@ -106,8 +121,11 @@ func checkDiff(file string) {
 				}
 			}
 		} else {
-			lnum := asInt(lineRange)
+			lnum := asInt(lineRange) + optOffset
 			sha1 := blame[lnum].sha1()
+			if len(sha1) == 0 {
+				continue
+			}
 			commitsAffected[sha1] = nil
 			linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
 
@@ -220,6 +238,9 @@ type LineBlame []byte
 
 func (lb LineBlame) sha1() string {
 	i := bytes.Index(lb, []byte{' '})
+	if i < 0 {
+		return ""
+	}
 	return string(lb[0:i])
 }
 
