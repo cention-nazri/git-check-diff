@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -19,6 +21,7 @@ var (
 	optBefore   bool
 	optOffset   = 0
 	optAfter    bool
+	optShowDate bool
 )
 
 func main() {
@@ -27,6 +30,7 @@ func main() {
 	flag.BoolVar(&optShowLine, "line", false, "Show the line numbers for each affected commit (will be shown regardless when there are no common commit)")
 	flag.BoolVar(&optBefore, "B", false, "Use the commit immediately preceeding the changed line - useful for one-liner change when the surrounding commit is newer than the changed line's")
 	flag.BoolVar(&optAfter, "A", false, "Use the commit immediately following the changed line -  useful for one-liner change when the surrounding commit is newer than the changed line's")
+	flag.BoolVar(&optShowDate, "date", false, "Show commit date")
 	flag.Parse()
 
 	if optLimit == 0 {
@@ -157,7 +161,7 @@ func checkDiff(file string) {
 		// We have a common commit for all the affected commits
 		fmt.Printf("Commits affected:\n")
 		for sha1, _ := range commitsAffected {
-			fmt.Printf("\t%s %s\n", sha1, getAffectedBranches(sha1))
+			showCommit(sha1)
 			if optShowLine {
 				showLines(linesForCommit[sha1])
 			}
@@ -176,7 +180,8 @@ func checkDiff(file string) {
 		// print relevant tags for this sha1
 		fmt.Printf("No common tags found for all the affected commits.\n")
 		for sha1, tags := range commitsAffected {
-			fmt.Printf("\t%s %s\n\t\t", sha1, getAffectedBranches(sha1))
+			showCommit(sha1)
+			fmt.Printf("\t\t")
 			sort.Sort(tags)
 			tagsToShow := &bytes.Buffer{}
 			for _, tag := range tags {
@@ -190,6 +195,24 @@ func checkDiff(file string) {
 			showLines(linesForCommit[sha1])
 		}
 	}
+}
+
+func showCommit(sha1 string) {
+	fmt.Printf("\t%s", sha1)
+	if optShowDate {
+		fmt.Printf(" %s", getCommitDate(sha1))
+	}
+	fmt.Printf(" %s\n", getAffectedBranches(sha1))
+}
+
+func getCommitDate(ref string) time.Time {
+	l := linesFrom("git", "show", "--no-patch", "--format=%at", ref)
+	date := string(l[0])
+	n, err := strconv.Atoi(date)
+	if err != nil {
+		log.Panicf("error parsing commit date %s: %v", date, err)
+	}
+	return time.Unix(int64(n), 0)
 }
 
 func showLines(lnums []int) {
