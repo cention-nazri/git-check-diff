@@ -23,6 +23,8 @@ index e953e19..60856c9 100755
 +// Line Added
 `,
 			want: Diff{
+				Added:   1,
+				Removed: 1,
 				Hunks: []HunkPair{
 					hunkPair(1, 1, 0, 0),
 					hunkPair(16, 0, 16, 1),
@@ -41,6 +43,8 @@ index e953e19..60856c9 100755
 +// Line added at end of file
 `,
 			want: Diff{
+				Added:   2,
+				Removed: 1,
 				Hunks: []HunkPair{
 					hunkPair(1, 1, 0, 0),
 					hunkPair(16, 0, 16, 1),

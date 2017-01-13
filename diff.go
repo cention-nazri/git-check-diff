@@ -17,7 +17,11 @@ type HunkPair struct {
 	Added   Hunk
 }
 type Diff struct {
-	Hunks []HunkPair
+	// Total number of lines added
+	Added int
+	// Total number of lines removed
+	Removed int
+	Hunks   []HunkPair
 }
 
 func NewDiff(r io.Reader) (Diff, error) {
@@ -36,10 +40,14 @@ func NewDiff(r io.Reader) (Diff, error) {
 		if len(chunks) < 4 {
 			return d, fmt.Errorf("invalid line: %s", line)
 		}
+		removed := toHunk(chunks[1])
+		added := toHunk(chunks[2])
 		d.Hunks = append(d.Hunks, HunkPair{
-			Removed: toHunk(chunks[1]),
-			Added:   toHunk(chunks[2]),
+			Removed: removed,
+			Added:   added,
 		})
+		d.Added += added.Count
+		d.Removed += removed.Count
 	}
 
 	return d, nil
