@@ -74,19 +74,20 @@ func getTagNumber(mbtag string) int {
 	return n
 }
 
+var (
+	HUNK_PREFIX = []byte{'@', '@', ' ', '-'}
+	SPACE       = []byte{' '}
+	COMMA       = []byte{','}
+)
+
 func checkDiff(file string) {
-	var (
-		HUNK_REMOVED = []byte{'@', '@', ' ', '-'}
-		SPACE        = []byte{' '}
-		COMMA        = []byte{','}
-	)
 
 	blame := getBlame(file)
 	commitsAffected := map[string]MergeBaseTags{}
 
 	linesForCommit := map[string][]int{}
 	for _, line := range linesFrom("git", "diff", "-U0", "--", file) {
-		if !bytes.HasPrefix(line, HUNK_REMOVED) {
+		if !bytes.HasPrefix(line, HUNK_PREFIX) {
 			continue
 		}
 
