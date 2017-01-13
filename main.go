@@ -93,6 +93,8 @@ func checkDiff(file string) {
 	if err != nil {
 		bail("error: %v", err)
 	}
+
+	fmt.Printf("Lines: %d removed, %d added\n", diff.Removed, diff.Added)
 	for _, hunk := range diff.Hunks {
 		if hunk.Removed.Count == 0 {
 			// no lines removed, just new lines added
