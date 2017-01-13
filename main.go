@@ -98,14 +98,15 @@ func checkDiff(file string) {
 	for _, hunk := range diff.Hunks {
 		if hunk.Removed.Count == 0 {
 			// no lines removed, just new lines added
-			lnum := hunk.Added.Start
-			count := hunk.Added.Count
-			if count == 0 {
-				bail("FIXME expecting added hunk count greater than 0 but got %d", count)
+
+			// verify that new lines are added
+			if hunk.Added.Count == 0 {
+				bail("FIXME expecting added hunk count greater than 0 but got %d", hunk.Added.Count)
 			}
-			if lnum > 1 {
-				// Use the commit preceeding the newly added lines
-				lnum--
+
+			lnum := hunk.Removed.Start
+			if lnum == 0 {
+				lnum = 1
 			}
 			sha1 := blame[lnum].sha1()
 			if len(sha1) == 0 {
