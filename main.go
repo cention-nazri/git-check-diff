@@ -43,11 +43,35 @@ func main() {
 	}
 
 	args := flag.Args()
-	if len(args) != 1 {
+	if len(args) == 0 {
 		bail("Usage: git check-diff <file>")
 	}
 
-	checkDiff(args[0])
+	tagsSeen := map[string]int{}
+	for i, filename := range args {
+		for _, tag := range checkDiff(filename) {
+			tagsSeen[tag]++
+		}
+		if i > 0 && i < len(args)-1 {
+			fmt.Println()
+		}
+	}
+
+	var commonTags MergeBaseTags
+	for tag, count := range tagsSeen {
+		if count == len(args) {
+			commonTags = append(commonTags, tag)
+		}
+	}
+	if len(args) > 1 {
+		fmt.Println()
+		if len(commonTags) > 0 {
+			sort.Sort(commonTags)
+			fmt.Printf("COMMON TAG: %s\n", commonTags)
+		} else {
+			fmt.Printf("NO COMMON TAG\n")
+		}
+	}
 
 }
 
@@ -56,6 +80,18 @@ type MergeBaseTags []string
 func (m MergeBaseTags) Len() int           { return len(m) }
 func (m MergeBaseTags) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 func (m MergeBaseTags) Less(i, j int) bool { return getTagNumber(m[i]) < getTagNumber(m[j]) }
+
+func (m MergeBaseTags) String() string {
+	b := &bytes.Buffer{}
+	for i, tag := range m {
+		fmt.Fprintf(b, "%s ", tag)
+		if !optAll && optLimit > 0 && i+1 >= optLimit && i < len(m)-1 {
+			fmt.Fprintf(b, "... %d more (use -all to show all)", len(m)-(i+1))
+			break
+		}
+	}
+	return b.String()
+}
 
 func getTagNumber(mbtag string) int {
 	if !strings.HasPrefix(mbtag, "MERGE_BASE_") {
@@ -79,8 +115,9 @@ var (
 	COMMA       = []byte{','}
 )
 
-func checkDiff(file string) {
-
+func checkDiff(file string) MergeBaseTags {
+	var commonTags MergeBaseTags
+	fmt.Printf("%s\n", file)
 	blame := getBlame(file)
 	commitsAffected := map[string]MergeBaseTags{}
 
@@ -94,7 +131,7 @@ func checkDiff(file string) {
 		bail("error: %v", err)
 	}
 
-	fmt.Printf("Lines: %d removed, %d added\n", diff.Removed, diff.Added)
+	fmt.Printf("    Lines: %d removed, %d added\n", diff.Removed, diff.Added)
 	for _, hunk := range diff.Hunks {
 		if hunk.Removed.Count == 0 {
 			// no lines removed, just new lines added
@@ -108,7 +145,7 @@ func checkDiff(file string) {
 			if lnum == 0 {
 				lnum = 1
 			}
-			sha1 := blame[lnum].sha1()
+			sha1 := blame.sha1(lnum)
 			if len(sha1) == 0 {
 				continue
 			}
@@ -121,7 +158,7 @@ func checkDiff(file string) {
 				for lnum := from; lnum < from+count-1; lnum++ {
 					lnum := lnum + optOffset
 					if lnum > 0 && lnum < len(blame) {
-						sha1 := blame[lnum].sha1()
+						sha1 := blame.sha1(lnum)
 						if len(sha1) == 0 {
 							continue
 						}
@@ -133,7 +170,7 @@ func checkDiff(file string) {
 				}
 			} else {
 				lnum := from + optOffset
-				sha1 := blame[lnum].sha1()
+				sha1 := blame.sha1(lnum)
 				if len(sha1) == 0 {
 					continue
 				}
@@ -167,26 +204,21 @@ func checkDiff(file string) {
 
 	if len(tags) > 0 {
 		// We have a common commit for all the affected commits
-		fmt.Printf("Commits affected:\n")
+		fmt.Printf("    Commits affected:\n")
+		// TODO when showing affected commits, sort them by their line numbers
 		for sha1, _ := range commitsAffected {
 			showCommit(sha1)
 			if optShowLine {
 				showLines(linesForCommit[sha1])
 			}
 		}
-		fmt.Printf("Common tag:\n")
+		fmt.Printf("    Common tag:\n")
 		sort.Sort(tags)
-		for i, tag := range tags {
-			fmt.Printf("\t%s\n", tag)
-			_ = i
-			if !optAll && optLimit > 0 && i+1 >= optLimit && i < len(tags)-1 {
-				fmt.Printf("\t... %d more (use -a to show all)\n", len(tags)-(i+1))
-				break
-			}
-		}
+		fmt.Printf("\t%s\n", tags)
+		commonTags = tags
 	} else {
 		// print relevant tags for this sha1
-		fmt.Printf("No common tags found for all the affected commits.\n")
+		fmt.Printf("    No common tags found for all the affected commits.\n")
 		for sha1, tags := range commitsAffected {
 			showCommit(sha1)
 			fmt.Printf("\t\t")
@@ -203,6 +235,8 @@ func checkDiff(file string) {
 			showLines(linesForCommit[sha1])
 		}
 	}
+
+	return commonTags
 }
 
 func showCommit(sha1 string) {
@@ -284,6 +318,10 @@ func getBlame(file string) Blame {
 		blame = append(blame, lblame)
 	}
 	return blame
+}
+
+func (b Blame) sha1(lnum int) string {
+	return b[lnum].sha1()
 }
 
 func linesFrom(command string, arg ...string) [][]byte {
