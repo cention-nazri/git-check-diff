@@ -1,4 +1,3 @@
-// hello
 package main
 
 import (
