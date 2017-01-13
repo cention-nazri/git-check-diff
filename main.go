@@ -86,33 +86,30 @@ func checkDiff(file string) {
 	commitsAffected := map[string]MergeBaseTags{}
 
 	linesForCommit := map[string][]int{}
-	for _, line := range linesFrom("git", "diff", "-U0", "--", file) {
-		if !bytes.HasPrefix(line, HUNK_PREFIX) {
+	buf, err := exec.Command("git", "diff", "-U0", "--", file).Output()
+	if err != nil {
+		bail("error: %v", err)
+	}
+	diff, err := NewDiff(bytes.NewReader(buf))
+	if err != nil {
+		bail("error: %v", err)
+	}
+	for _, hunk := range diff.Hunks {
+		if hunk.Removed.Count == 0 {
+			// fmt.Printf("   linerange %s\n", lineRange) // DEBUG
+			// no lines removed, just new lines added
 			continue
+			// TODO show  merge base from the "from" line's
+			// commit (need to deal with addition at top of
+			// file, in which case `from` is 0
+			// TODO how do we deal with addition at end of
+			// file
 		}
 
-		chunks := bytes.Split(line, SPACE)
-		if len(chunks) <= 2 {
-			bail("invalid line: %s", line)
-		}
-
-		lineRange := chunks[1][1:]
-		if bytes.Contains(lineRange, COMMA) {
-			i := bytes.Index(lineRange, COMMA)
-			from := asInt(lineRange[0:i])
-			to := asInt(lineRange[i+1:])
-			if to == 0 {
-				// fmt.Printf("   linerange %s\n", lineRange) // DEBUG
-				// no lines removed, just new lines added
-				continue
-				// TODO show  merge base from the "from" line's
-				// commit (need to deal with addition at top of
-				// file, in which case `from` is 0
-				// TODO how do we deal with addition at end of
-				// file
-			}
-
-			for lnum := from; lnum < from+to-1; lnum++ {
+		from := hunk.Removed.Start
+		count := hunk.Removed.Count
+		if count > 1 {
+			for lnum := from; lnum < from+count-1; lnum++ {
 				lnum := lnum + optOffset
 				if lnum > 0 && lnum < len(blame) {
 					sha1 := blame[lnum].sha1()
@@ -126,7 +123,7 @@ func checkDiff(file string) {
 				}
 			}
 		} else {
-			lnum := asInt(lineRange) + optOffset
+			lnum := from + optOffset
 			sha1 := blame[lnum].sha1()
 			if len(sha1) == 0 {
 				continue
