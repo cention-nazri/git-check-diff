@@ -96,41 +96,49 @@ func checkDiff(file string) {
 	}
 	for _, hunk := range diff.Hunks {
 		if hunk.Removed.Count == 0 {
-			// fmt.Printf("   linerange %s\n", lineRange) // DEBUG
 			// no lines removed, just new lines added
-			continue
-			// TODO show  merge base from the "from" line's
-			// commit (need to deal with addition at top of
-			// file, in which case `from` is 0
-			// TODO how do we deal with addition at end of
-			// file
-		}
-
-		from := hunk.Removed.Start
-		count := hunk.Removed.Count
-		if count > 1 {
-			for lnum := from; lnum < from+count-1; lnum++ {
-				lnum := lnum + optOffset
-				if lnum > 0 && lnum < len(blame) {
-					sha1 := blame[lnum].sha1()
-					if len(sha1) == 0 {
-						continue
-					}
-					commitsAffected[sha1] = nil
-					linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
-				} else {
-					fmt.Printf("DEBUG out of bound len(blame) = %d, lnum %d\n", len(blame), lnum)
-				}
+			lnum := hunk.Added.Start
+			count := hunk.Added.Count
+			if count == 0 {
+				bail("FIXME expecting added hunk count greater than 0 but got %d", count)
 			}
-		} else {
-			lnum := from + optOffset
+			if lnum > 1 {
+				// Use the commit preceeding the newly added lines
+				lnum--
+			}
 			sha1 := blame[lnum].sha1()
 			if len(sha1) == 0 {
 				continue
 			}
 			commitsAffected[sha1] = nil
 			linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
+		} else {
+			from := hunk.Removed.Start
+			count := hunk.Removed.Count
+			if count > 1 {
+				for lnum := from; lnum < from+count-1; lnum++ {
+					lnum := lnum + optOffset
+					if lnum > 0 && lnum < len(blame) {
+						sha1 := blame[lnum].sha1()
+						if len(sha1) == 0 {
+							continue
+						}
+						commitsAffected[sha1] = nil
+						linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
+					} else {
+						fmt.Printf("DEBUG out of bound len(blame) = %d, lnum %d\n", len(blame), lnum)
+					}
+				}
+			} else {
+				lnum := from + optOffset
+				sha1 := blame[lnum].sha1()
+				if len(sha1) == 0 {
+					continue
+				}
+				commitsAffected[sha1] = nil
+				linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
 
+			}
 		}
 	}
 	tagsSeen := map[string]int{}
