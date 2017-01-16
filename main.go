@@ -176,7 +176,6 @@ func checkDiff(file string) MergeBaseTags {
 				}
 				commitsAffected[sha1] = nil
 				linesForCommit[sha1] = append(linesForCommit[sha1], lnum)
-
 			}
 		}
 	}
