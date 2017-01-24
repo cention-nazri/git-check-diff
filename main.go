@@ -21,6 +21,7 @@ var (
 	optOffset   = 0
 	optAfter    bool
 	optShowDate bool
+	optCached   bool
 )
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 	flag.BoolVar(&optBefore, "B", false, "Use the commit immediately preceeding the changed line - useful for one-liner change when the surrounding commit is newer than the changed line's")
 	flag.BoolVar(&optAfter, "A", false, "Use the commit immediately following the changed line -  useful for one-liner change when the surrounding commit is newer than the changed line's")
 	flag.BoolVar(&optShowDate, "date", false, "Show commit date")
+	flag.BoolVar(&optCached, "cached", false, "Pass --cached option to git diff")
 	flag.Parse()
 
 	if optLimit == 0 {
@@ -122,7 +124,13 @@ func checkDiff(file string) MergeBaseTags {
 	commitsAffected := map[string]MergeBaseTags{}
 
 	linesForCommit := map[string][]int{}
-	buf, err := exec.Command("git", "diff", "-U0", "--", file).Output()
+	gitDiffArgs := []string{"diff", "-U0"}
+	if optCached {
+		gitDiffArgs = append(gitDiffArgs, "--cached")
+	}
+	gitDiffArgs = append(gitDiffArgs, "--", file)
+
+	buf, err := exec.Command("git", gitDiffArgs...).Output()
 	if err != nil {
 		bail("error: %v", err)
 	}
