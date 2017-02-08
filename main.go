@@ -163,7 +163,7 @@ func checkDiff(file string) MergeBaseTags {
 			from := hunk.Removed.Start
 			count := hunk.Removed.Count
 			if count > 1 {
-				for lnum := from; lnum < from+count-1; lnum++ {
+				for lnum := from; lnum < from+count; lnum++ {
 					lnum := lnum + optOffset
 					if lnum > 0 && lnum < len(blame) {
 						sha1 := blame.sha1(lnum)
