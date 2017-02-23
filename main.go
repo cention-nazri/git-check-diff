@@ -22,7 +22,10 @@ var (
 	optAfter    bool
 	optShowDate bool
 	optCached   bool
+	optHunks    string
 )
+
+type WantedHunks map[int]bool
 
 func main() {
 	flag.BoolVar(&optAll, "all", false, "Show all merge base tags")
@@ -32,6 +35,7 @@ func main() {
 	flag.BoolVar(&optAfter, "A", false, "Use the commit immediately following the changed line -  useful for one-liner change when the surrounding commit is newer than the changed line's")
 	flag.BoolVar(&optShowDate, "date", false, "Show commit date")
 	flag.BoolVar(&optCached, "cached", false, "Pass --cached option to git diff")
+	flag.StringVar(&optHunks, "H", "", "Check the given hunks only (comma separated, first hunk is 1, from git diff -U0).")
 	flag.Parse()
 
 	if optLimit == 0 {
@@ -49,9 +53,24 @@ func main() {
 		bail("Usage: git check-diff <file>")
 	}
 
+	var hunks WantedHunks
+	if optHunks != "" {
+		if len(args) > 1 {
+			bail("-H works only with one file")
+		}
+		hunks = WantedHunks{}
+		for _, v := range strings.Split(optHunks, ",") {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				bail("%s: %v", v, err)
+			}
+			hunks[n] = true
+		}
+	}
+
 	tagsSeen := map[string]int{}
 	for i, filename := range args {
-		for _, tag := range checkDiff(filename) {
+		for _, tag := range checkDiff(filename, hunks) {
 			tagsSeen[tag]++
 		}
 		if i > 0 && i < len(args)-1 {
@@ -117,7 +136,7 @@ var (
 	COMMA       = []byte{','}
 )
 
-func checkDiff(file string) MergeBaseTags {
+func checkDiff(file string, hunks WantedHunks) MergeBaseTags {
 	var commonTags MergeBaseTags
 	fmt.Printf("%s\n", file)
 	blame := getBlame(file)
@@ -137,6 +156,19 @@ func checkDiff(file string) MergeBaseTags {
 	diff, err := NewDiff(bytes.NewReader(buf))
 	if err != nil {
 		bail("error: %v", err)
+	}
+
+	if hunks != nil {
+		odiff := diff
+		diff = Diff{}
+		for i, hunk := range odiff.Hunks {
+			if !hunks[i+1] {
+				continue
+			}
+			diff.Added += hunk.Added.Count
+			diff.Removed += hunk.Removed.Count
+			diff.Hunks = append(diff.Hunks, hunk)
+		}
 	}
 
 	fmt.Printf("    Lines: %d removed, %d added\n", diff.Removed, diff.Added)
