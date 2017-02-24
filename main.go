@@ -23,6 +23,7 @@ var (
 	optShowDate bool
 	optCached   bool
 	optHunks    string
+	optShowHunk bool
 )
 
 type WantedHunks map[int]bool
@@ -36,6 +37,7 @@ func main() {
 	flag.BoolVar(&optShowDate, "date", false, "Show commit date")
 	flag.BoolVar(&optCached, "cached", false, "Pass --cached option to git diff")
 	flag.StringVar(&optHunks, "H", "", "Check the given hunks only (comma separated, first hunk is 1, from git diff -U0).")
+	flag.BoolVar(&optShowHunk, "hunk", false, "Show hunk")
 	flag.Parse()
 
 	if optLimit == 0 {
@@ -173,6 +175,9 @@ func checkDiff(file string, hunks WantedHunks) MergeBaseTags {
 
 	fmt.Printf("    Lines: %d removed, %d added\n", diff.Removed, diff.Added)
 	for _, hunk := range diff.Hunks {
+		if optShowHunk {
+			fmt.Printf("%s\n", hunk.diff)
+		}
 		if hunk.Removed.Count == 0 {
 			// no lines removed, just new lines added
 

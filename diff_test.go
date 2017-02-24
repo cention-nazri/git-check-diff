@@ -25,9 +25,9 @@ index e953e19..60856c9 100755
 			want: Diff{
 				Added:   1,
 				Removed: 1,
-				Hunks: []HunkPair{
-					hunkPair(1, 1, 0, 0),
-					hunkPair(16, 0, 16, 1),
+				Hunks: Hunks{
+					hunkPair(1, 1, 0, 0, "@@ -1 +0,0 @@\n-// hello"),
+					hunkPair(16, 0, 16, 1, "@@ -16,0 +16,1 @@ import (\n+// Line Added"),
 				},
 			},
 		},
@@ -45,10 +45,10 @@ index e953e19..60856c9 100755
 			want: Diff{
 				Added:   2,
 				Removed: 1,
-				Hunks: []HunkPair{
-					hunkPair(1, 1, 0, 0),
-					hunkPair(16, 0, 16, 1),
-					hunkPair(296, 0, 298, 1),
+				Hunks: Hunks{
+					hunkPair(1, 1, 0, 0, "@@ -1 +0,0 @@\n-// hello"),
+					hunkPair(16, 0, 16, 1, "@@ -16,0 +16 @@ import (\n+// Line added at middle of file"),
+					hunkPair(296, 0, 298, 1, "@@ -296,0 +298 @@ func bail(format string, args ...interface{}) {\n+// Line added at end of file"),
 				},
 			},
 		},
@@ -63,8 +63,8 @@ index 4e3ecb5..b7d5fd7 100755
 			want: Diff{
 				Added:   0,
 				Removed: 1,
-				Hunks: []HunkPair{
-					hunkPair(1, 1, 0, 0),
+				Hunks: Hunks{
+					hunkPair(1, 1, 0, 0, "@@ -1 +0,0 @@\n-// hello"),
 				},
 			},
 		},
@@ -77,7 +77,7 @@ index 4e3ecb5..b7d5fd7 100755
 			t.Fatalf("error: %v", err)
 		}
 		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("tests[%d] failed\nwant: %v\n got: %v", i, tt.want, got)
+			t.Errorf("tests[%d] failed\nwant: %s\n got: %s", i, &tt.want, &got)
 		}
 	}
 }
