@@ -29,11 +29,11 @@ var (
 type WantedHunks map[int]bool
 
 func main() {
-	flag.BoolVar(&optAll, "all", false, "Show all merge base tags")
+	flag.BoolVar(&optAll, "all", false, "Show all merge base tags.")
 	flag.IntVar(&optLimit, "limit", 7, "Show only the given `number` of merge base tags. 0 is equivalent to -all.")
-	flag.BoolVar(&optShowLine, "line", false, "Show the line numbers for each affected commit (will be shown regardless when there are no common commit)")
-	flag.BoolVar(&optBefore, "B", false, "Use the commit immediately preceeding the changed line - useful for one-liner change when the surrounding commit is newer than the changed line's")
-	flag.BoolVar(&optAfter, "A", false, "Use the commit immediately following the changed line -  useful for one-liner change when the surrounding commit is newer than the changed line's")
+	flag.BoolVar(&optShowLine, "line", false, "Show the line numbers for each affected commit (will be shown\n\tregardless when there are no common commit).")
+	flag.BoolVar(&optBefore, "B", false, "Use the commit immediately preceeding the changed line. Useful for one-liner\n\tchange when the surrounding commit is newer than the changed line's.")
+	flag.BoolVar(&optAfter, "A", false, "Use the commit immediately following the changed line. Useful for one-liner\n\tchange when the surrounding commit is newer than the changed line's.")
 	flag.BoolVar(&optShowDate, "date", false, "Show commit date")
 	flag.BoolVar(&optCached, "cached", false, "Pass --cached option to git diff")
 	flag.StringVar(&optHunks, "H", "", "Check the given hunks only (comma separated, first hunk is 1, from git diff -U0).")
