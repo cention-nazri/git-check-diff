@@ -75,7 +75,7 @@ func main() {
 		for _, tag := range checkDiff(filename, hunks) {
 			tagsSeen[tag]++
 		}
-		if i > 0 && i < len(args)-1 {
+		if i < len(args)-1 {
 			fmt.Println()
 		}
 	}
